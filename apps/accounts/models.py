@@ -18,7 +18,6 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     is_staff = models.BooleanField(default=False)
     last_login_at = models.DateTimeField(null=True, blank=True)
 
-    # Managers
     objects = UserManager()
     all_objects = models.Manager()
 

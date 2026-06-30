@@ -2,7 +2,6 @@ from django.contrib.auth.models import BaseUserManager
 
 class UserManager(BaseUserManager):
     def get_queryset(self):
-        # Default objects manager filters out soft deleted records
         return super().get_queryset().filter(is_deleted=False)
 
     def create_user(self, email, password=None, **extra_fields):

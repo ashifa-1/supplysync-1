@@ -17,7 +17,6 @@ class RegisterView(APIView):
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
         
-        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         return Response({
             "id": user.id,
@@ -44,11 +43,9 @@ class LoginView(APIView):
         throttle = LoginRateLimitThrottle()
         ip = throttle.get_ident(request)
         
-        # Authenticate user
         user = authenticate(request, username=email, password=password)
         
         if user is None:
-            # Record failed login attempt
             LoginRateLimitThrottle.record_failed_attempt(ip)
             return Response({
                 "timestamp": timezone.now().isoformat(),
@@ -70,12 +67,10 @@ class LoginView(APIView):
                 "errors": []
             }, status=status.HTTP_403_FORBIDDEN)
             
-        # Successful login: update last_login_at and clear rate limit attempts
         user.last_login_at = timezone.now()
         user.save(update_fields=['last_login_at'])
         LoginRateLimitThrottle.clear_attempts(ip)
         
-        # Generate JWT tokens
         refresh = RefreshToken.for_user(user)
         return Response({
             "access_token": str(refresh.access_token),

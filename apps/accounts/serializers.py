@@ -57,9 +57,6 @@ class LoginSerializer(serializers.Serializer):
         email = attrs.get('email')
         password = attrs.get('password')
         
-        # We will authenticate the user. Note that we do authentication in the view
-        # or inside validation. To make it standard, let's authenticate inside the validation
-        # or view. Let's do it in the view so we can increment rate limits cleanly on failed auth.
         return attrs
 
 
