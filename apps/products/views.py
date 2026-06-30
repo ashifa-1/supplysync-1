@@ -31,12 +31,11 @@ class ProductListCreateView(APIView):
         return Response(out_serializer.data, status=status.HTTP_201_CREATED)
 
     def get(self, request, *args, **kwargs):
-        # Determine if filters are applied
+        
         filter_params = ['category_id', 'is_active', 'min_price', 'max_price', 'search']
         has_filters = any(request.query_params.get(param) is not None for param in filter_params)
         page = request.query_params.get('page', '1')
 
-        # Caching logic
         use_cache = not has_filters and page == '1'
         cache_key = 'products:list'
 
@@ -45,7 +44,6 @@ class ProductListCreateView(APIView):
             if cached_data is not None:
                 return Response(cached_data)
 
-        # Apply filtering
         queryset = Product.objects.filter(is_deleted=False).order_by('id')
         filter_set = ProductFilter(request.query_params, queryset=queryset)
         if filter_set.is_valid():

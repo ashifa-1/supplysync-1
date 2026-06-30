@@ -15,9 +15,7 @@ def create_product(data: dict) -> Product:
 
     sku = data.get('sku')
     if not sku:
-        # SKU-<CATEGORY_CODE>-<8 character random alphanumeric uppercase>
         while True:
-            # Let's generate 8 random characters using our core helper or inline
             import random
             import string
             rand_part = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
@@ -39,7 +37,6 @@ def create_product(data: dict) -> Product:
         is_active=data.get('is_active', True)
     )
 
-    # Invalidate product list cache
     cache.delete('products:list')
     return product
 
@@ -55,7 +52,6 @@ def get_product_with_inventory(product_id: int) -> dict:
     except Product.DoesNotExist:
         raise ResourceNotFoundException("Product not found.")
 
-    # Fetch inventory breakdown
     from apps.inventory.models import Inventory
     inv_records = Inventory.objects.filter(product=product, is_deleted=False).select_related('warehouse')
 
@@ -115,7 +111,6 @@ def update_product(product_id: int, data: dict) -> Product:
 
     product.save()
 
-    # Invalidate caches
     cache.delete('products:list')
     cache.delete(f'products:detail:{product_id}')
     return product
@@ -129,6 +124,5 @@ def delete_product(product_id: int) -> None:
 
     product.delete() # soft delete
 
-    # Invalidate caches
     cache.delete('products:list')
     cache.delete(f'products:detail:{product_id}')
