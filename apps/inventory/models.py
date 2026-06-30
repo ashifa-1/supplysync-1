@@ -29,7 +29,6 @@ class TransactionType(models.TextChoices):
 
 
 class InventoryTransaction(models.Model):
-    # Minimal Base (only created_at, no update/is_deleted)
     product = models.ForeignKey(Product, on_delete=models.PROTECT)
     warehouse = models.ForeignKey(Warehouse, on_delete=models.PROTECT)
     transaction_type = models.CharField(max_length=30, choices=TransactionType.choices)

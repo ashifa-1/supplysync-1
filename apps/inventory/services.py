@@ -26,7 +26,6 @@ def adjust_inventory(data: dict, performed_by_user_id: int) -> InventoryTransact
         raise ResourceNotFoundException("Product, warehouse, or user not found.")
 
     with transaction.atomic():
-        # Get or create inventory record with row-level lock
         inventory, created = Inventory.objects.select_for_update().get_or_create(
             product=product,
             warehouse=warehouse,
@@ -52,7 +51,6 @@ def adjust_inventory(data: dict, performed_by_user_id: int) -> InventoryTransact
             inventory.quantity_available -= quantity
             inventory.quantity_damaged += quantity
         elif transaction_type == TransactionType.ADJUSTMENT:
-            # quantity can be positive (increase) or negative (decrease)
             if inventory.quantity_available + quantity < 0:
                 raise InsufficientInventoryException(
                     f"Adjustment would result in negative inventory. Available: {inventory.quantity_available}, Change: {quantity}"
@@ -63,7 +61,6 @@ def adjust_inventory(data: dict, performed_by_user_id: int) -> InventoryTransact
 
         inventory.save()
 
-        # Create transaction record
         tx = InventoryTransaction.objects.create(
             product=product,
             warehouse=warehouse,
@@ -73,11 +70,9 @@ def adjust_inventory(data: dict, performed_by_user_id: int) -> InventoryTransact
             notes=notes
         )
 
-    # Invalidate cache for low stock alert
     cache.delete('inventory:low-stock')
     cache.delete('reports:dashboard')
 
-    # Dispatch Celery task asynchronously
     from apps.inventory.tasks import process_inventory_updated_event
     process_inventory_updated_event.delay(
         product_id=product.id,
@@ -110,10 +105,8 @@ def transfer_inventory(data: dict, performed_by_user_id: int) -> dict:
     reference_id = f"TRANSFER-{uuid.uuid4().hex[:12].upper()}"
 
     with transaction.atomic():
-        # Lock in consistent order to prevent deadlocks (lower ID first)
         wh_ids = sorted([source_warehouse_id, destination_warehouse_id])
         
-        # We query the inventory objects locking them in order
         inventories = {}
         for wh_id in wh_ids:
             wh_obj = source_wh if wh_id == source_warehouse_id else dest_wh
@@ -132,15 +125,12 @@ def transfer_inventory(data: dict, performed_by_user_id: int) -> dict:
                 f"Source warehouse has insufficient inventory. Available: {source_inv.quantity_available}, Requested: {quantity}"
             )
 
-        # Deduct from source
         source_inv.quantity_available -= quantity
         source_inv.save()
 
-        # Add to destination
         dest_inv.quantity_available += quantity
         dest_inv.save()
 
-        # Create two InventoryTransaction records
         tx_out = InventoryTransaction.objects.create(
             product=product,
             warehouse=source_wh,
@@ -161,11 +151,9 @@ def transfer_inventory(data: dict, performed_by_user_id: int) -> dict:
             notes=f"Transfer from {source_wh.warehouse_code}. Notes: {notes or ''}"
         )
 
-    # Invalidate cache
     cache.delete('inventory:low-stock')
     cache.delete('reports:dashboard')
 
-    # Dispatch Celery task
     from apps.inventory.tasks import process_inventory_transfer_event
     process_inventory_transfer_event.delay(
         product_id=product.id,
@@ -187,8 +175,6 @@ def get_low_stock_alerts() -> list:
     if cached is not None:
         return cached
 
-    # Query all inventory records below reorder level (active records)
-    # We join with product and warehouse
     low_stock_records = Inventory.objects.filter(
         is_deleted=False,
         product__is_deleted=False,
@@ -227,12 +213,9 @@ def check_and_publish_low_stock_alert(product_id: int, warehouse_id: int) -> Non
         return
 
     if inventory.quantity_available <= inventory.product.reorder_level:
-        # Log warning with exact format:
-        # LOW STOCK ALERT: Product {sku} in Warehouse {warehouse_code} has {quantity_available} units remaining (reorder level: {reorder_level})
         logger.warning(
             f"LOW STOCK ALERT: Product {inventory.product.sku} in Warehouse {inventory.warehouse.warehouse_code} "
             f"has {inventory.quantity_available} units remaining (reorder level: {inventory.product.reorder_level})"
         )
         
-        # Invalidate the low-stock cache key
         cache.delete('inventory:low-stock')

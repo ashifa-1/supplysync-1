@@ -12,7 +12,6 @@ def process_inventory_updated_event(self, product_id: int, warehouse_id: int, tr
         from apps.inventory.services import check_and_publish_low_stock_alert
         check_and_publish_low_stock_alert(product_id, warehouse_id)
     except Exception as exc:
-        # Retry on failure with exponential backoff
         countdown = 2 ** self.request.retries
         logger.error(f"Error processing inventory update event, retrying in {countdown} seconds: {exc}")
         raise self.retry(exc=exc, countdown=countdown)
@@ -23,7 +22,6 @@ def process_inventory_transfer_event(self, product_id: int, source_warehouse_id:
     logger.info(f"EVENT [inventory-transfer-initiated]: product_id={product_id}, from={source_warehouse_id}, to={destination_warehouse_id}, qty={quantity}")
     
     try:
-        # Downstream alerts for both source and destination warehouses
         from apps.inventory.services import check_and_publish_low_stock_alert
         check_and_publish_low_stock_alert(product_id, source_warehouse_id)
         check_and_publish_low_stock_alert(product_id, destination_warehouse_id)
