@@ -1,85 +1,190 @@
-# SupplySync Inventory and Order Management Platform
+#  SupplySync: Inventory & Order Management Platform
 
-SupplySync is a production-grade logistics and inventory backend built using **Django**, **Django REST Framework (DRF)**, **Celery**, and **Redis**. It handles inventory management across multiple warehouses, processes orders, and tracks purchase and sales lifecycles under high concurrency.
+## Overview
 
-## Core Features & Architecture
+**SupplySync** is a production-ready backend application designed for inventory, warehouse, and order management. Built with **Django**, **Django REST Framework**, **PostgreSQL**, **Celery**, and **Redis**, it efficiently manages stock across multiple warehouses while supporting purchase and sales workflows in high-concurrency environments.
 
-1. **Service Layer Architecture**: Strictly decouples business logic from the HTTP representation layer. All mutations and database operations reside in dedicated `services.py` modules inside each app.
-2. **Concurrency Control & Row-Level Locking**: Implements PostgreSQL's row-level locking via Django ORM's `select_for_update()` during critical operations like stock transfers and sales order placements to prevent double-spending or overselling.
-3. **Event-Driven Asynchronous Processing**: Triggers background Celery workers for event logging, low stock alerting, and downstream actions when inventory modifications occur.
-4. **Periodic Cron Jobs**: Integrated with **Celery Beat** for automated cache invalidation (low-stock reports) and daily operational summary logging.
-5. **Redis Caching Strategy**: Caches read-heavy endpoints (product details, categories tree, warehouse summaries, dashboard analytics, low stock reports) with cache invalidation on mutations.
-6. **Role-Based Access Control (RBAC)**: Enforces access restrictions for roles (`ADMIN`, `WAREHOUSE_MANAGER`, `PROCUREMENT_MANAGER`, and `STAFF`) via custom DRF permission classes.
-7. **Rate Limiting**: Custom Redis-backed throttle (`LoginRateLimitThrottle`) restricting failed login attempts to 5 per IP address per 15-minute window.
-8. **Unified Custom Exception Handler**: Catches all validation, business, and framework exceptions to return them in a standardized JSON error response schema.
+The project follows clean architectural principles with a strong focus on scalability, maintainability, and reliability.
 
 ---
 
-## Technology Stack
+#  Highlights
 
-- **Backend Framework**: Python (3.11/3.12/3.13) & Django 5.x
-- **API Engine**: Django REST Framework (DRF) 3.15.x
-- **Authentication**: Stateless Simple JWT (JSON Web Tokens)
-- **Database**: PostgreSQL 15
-- **Task Queue & Message Broker**: Celery & Redis
-- **OpenAPI documentation**: drf-spectacular (Swagger UI / Redoc)
-- **Testing**: pytest & pytest-django
+### Clean Service Layer Design
+
+Business rules are completely separated from API views. All database updates and core business operations are handled inside dedicated `services.py` files, keeping the presentation layer lightweight and maintainable.
+
+### Safe Concurrent Transactions
+
+Critical inventory operations use PostgreSQL row-level locking through Django's `select_for_update()` to ensure stock consistency during events such as:
+
+* Inventory transfers
+* Sales order processing
+* Stock deductions
+
+This prevents race conditions, duplicate updates, and inventory overselling.
+
+### Background Task Processing
+
+Celery workers process asynchronous operations so that API requests remain fast. Background jobs include:
+
+* Inventory event logging
+* Low-stock notifications
+* Post-processing after inventory changes
+* Additional downstream business events
+
+### Automated Scheduled Tasks
+
+Celery Beat executes recurring jobs such as:
+
+* Refreshing cached low-stock reports
+* Generating daily operational summaries
+* Performing routine maintenance tasks
+
+### Intelligent Redis Caching
+
+Frequently requested resources are cached to improve response times, including:
+
+* Product information
+* Category hierarchy
+* Warehouse summaries
+* Dashboard metrics
+* Low-stock reports
+
+Caches are automatically refreshed whenever related data changes.
+
+### Role-Based Authorization
+
+Access to APIs is protected using custom Django REST Framework permission classes with the following roles:
+
+* ADMIN
+* WAREHOUSE_MANAGER
+* PROCUREMENT_MANAGER
+* STAFF
+
+Each role is granted only the permissions necessary for its responsibilities.
+
+### Login Rate Limiting
+
+Authentication endpoints implement a Redis-backed custom throttle (`LoginRateLimitThrottle`) that limits failed login attempts to **5 requests per IP address within a 15-minute window**, helping reduce brute-force attacks.
+
+### Unified Error Responses
+
+A centralized exception handler captures framework, validation, and business exceptions and returns them using a consistent JSON response structure across the API.
 
 ---
 
-## Local Development Setup
+#  Technology Stack
 
-### 1. Prerequisite Infrastructure
-Ensure Docker and Docker Compose are installed. Spin up the infrastructure services (PostgreSQL & Redis):
+| Category               | Technologies                         |
+| ---------------------- | ------------------------------------ |
+| Programming Language   | Python 3.11 / 3.12 / 3.13            |
+| Backend Framework      | Django 5.x                           |
+| REST API               | Django REST Framework 3.15.x         |
+| Authentication         | Simple JWT                           |
+| Database               | PostgreSQL 15                        |
+| Cache & Message Broker | Redis                                |
+| Background Processing  | Celery                               |
+| API Documentation      | drf-spectacular (Swagger UI & Redoc) |
+| Testing                | pytest, pytest-django                |
+
+---
+
+#  Local Development Guide
+
+## Step 1: Start Infrastructure Services
+
+Ensure **Docker** and **Docker Compose** are installed, then launch PostgreSQL and Redis containers.
 
 ```bash
 docker-compose up -d
 ```
 
-### 2. Virtual Environment Setup
-Initialize a Python virtual environment and install dependencies:
+---
+
+## Step 2: Create a Virtual Environment
 
 ```bash
 python -m venv venv
-# On Windows
-venv\Scripts\activate
-# On macOS/Linux
-source venv/bin/activate
+```
 
+Activate the environment:
+
+**Windows**
+
+```bash
+venv\Scripts\activate
+```
+
+**macOS / Linux**
+
+```bash
+source venv/bin/activate
+```
+
+Install project dependencies:
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 3. Running Database Migrations
-Create schema migrations and apply them to the PostgreSQL database container:
+---
+
+## Step 3: Apply Database Migrations
+
+Generate and execute migrations:
 
 ```bash
 python manage.py makemigrations
 python manage.py migrate
 ```
 
-### 4. Running the Development Server
-Start the Django API application locally:
+---
+
+## Step 4: Launch the Development Server
+
+Run the Django development server:
 
 ```bash
 python manage.py runserver
 ```
-The API will be available at `http://127.0.0.1:8000/`.
+
+The application will be available at:
+
+```
+http://127.0.0.1:8000/
+```
 
 ---
 
-## API Documentation
+# API Documentation
 
-The project auto-generates OpenAPI 3 schemas. Once the server is running, access the interactive docs:
-- **Swagger UI**: [http://127.0.0.1:8000/api/schema/swagger-ui/](http://127.0.0.1:8000/api/schema/swagger-ui/)
-- **Redoc**: [http://127.0.0.1:8000/api/schema/redoc/](http://127.0.0.1:8000/api/schema/redoc/)
+OpenAPI documentation is generated automatically.
+
+Available interfaces:
+
+**Swagger UI**
+
+```
+http://127.0.0.1:8000/api/schema/swagger-ui/
+```
+
+**Redoc**
+
+```
+http://127.0.0.1:8000/api/schema/redoc/
+```
+
+These interfaces allow developers to explore, test, and understand every available API endpoint.
 
 ---
 
-## Running Automated Tests
+# Running the Test Suite
 
-Run the test suite using `pytest`:
+Execute all automated tests with:
 
 ```bash
 pytest
 ```
-Testing is configured via `pytest.ini` and runs against a clean SQLite database to keep executions fast and isolated.
+
+The project uses **pytest** together with **pytest-django**. Test execution is configured through `pytest.ini` and runs against an isolated SQLite database, enabling fast and repeatable test runs.
