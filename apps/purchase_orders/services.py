@@ -32,19 +32,19 @@ def create_purchase_order(data: dict, created_by_user_id: int) -> PurchaseOrder:
     except (User.DoesNotExist, Supplier.DoesNotExist, Warehouse.DoesNotExist):
         raise ResourceNotFoundException("Supplier, Warehouse, or User not found.")
 
-    # Generate daily sequence PO number: PO-<YYYYMMDD>-<4 digit sequence>
+    
     today_str = datetime.date.today().strftime('%Y%m%d')
     redis_key = f"po-sequence:{today_str}"
     try:
         seq = cache.incr(redis_key)
     except ValueError:
-        # Key does not exist, set initial value to 1 and TTL to 24 hours
+    
         cache.set(redis_key, 1, timeout=86400)
         seq = 1
 
     po_number = f"PO-{today_str}-{seq:04d}"
 
-    # Verify uniqueness in DB just in case
+
     if PurchaseOrder.objects.filter(po_number=po_number).exists():
         raise DuplicateResourceException(f"Purchase order with number {po_number} already exists.")
 
@@ -97,7 +97,7 @@ def submit_purchase_order(po_id: int) -> PurchaseOrder:
     if po.status != PurchaseOrderStatus.DRAFT:
         raise InvalidOperationException("Only DRAFT purchase orders can be submitted.")
 
-    # Check if PO has at least one item
+    
     if not po.items.exists():
         raise InvalidOperationException(
             detail="Purchase order must have at least one item before submission.",
@@ -134,8 +134,6 @@ def receive_purchase_order(po_id: int, data: dict, performed_by_user_id: int) ->
     except PurchaseOrder.DoesNotExist:
         raise ResourceNotFoundException("Purchase order not found.")
 
-    # Receipt can happen if order is APPROVED or partially received/ordered.
-    # Wait, what are the allowed states? Approved or Ordered or Partially Received.
     if po.status not in [PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.ORDERED, PurchaseOrderStatus.PARTIALLY_RECEIVED]:
         raise InvalidOperationException("Purchase order cannot be received in the current state.")
 
@@ -160,11 +158,10 @@ def receive_purchase_order(po_id: int, data: dict, performed_by_user_id: int) ->
                     f"Received quantity {qty_rec} exceeds the remaining allowed quantity {max_allowed} for item {po_item.product.sku}."
                 )
 
-            # Update item received quantity
             po_item.quantity_received += qty_rec
             po_item.save()
 
-            # Call adjust_inventory with INBOUND transaction type
+
             adjust_inventory(
                 data={
                     "product_id": po_item.product.id,
@@ -176,7 +173,7 @@ def receive_purchase_order(po_id: int, data: dict, performed_by_user_id: int) ->
                 performed_by_user_id=performed_by_user_id
             )
 
-        # Re-fetch items from DB to check status
+
         items = list(po.items.all())
         all_fully_received = all(item.quantity_received == item.quantity_ordered for item in items)
         any_received = any(item.quantity_received > 0 for item in items)
@@ -193,7 +190,7 @@ def receive_purchase_order(po_id: int, data: dict, performed_by_user_id: int) ->
             
         po.save()
 
-    # Dispatch Celery task
+
     from apps.purchase_orders.tasks import process_purchase_order_received_event
     process_purchase_order_received_event.delay(
         po_id=po.id,

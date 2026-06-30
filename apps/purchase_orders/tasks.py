@@ -8,7 +8,6 @@ def process_purchase_order_received_event(self, po_id: int, received_by_user_id:
     logger.info(f"EVENT [purchase-order-received]: po_id={po_id}, received_by={received_by_user_id}")
     
     try:
-        # Downstream tasks can be triggered here if necessary
         pass
     except Exception as exc:
         countdown = 2 ** self.request.retries

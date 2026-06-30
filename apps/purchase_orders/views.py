@@ -40,7 +40,7 @@ class PurchaseOrderListCreateView(APIView):
     def get(self, request, *args, **kwargs):
         queryset = PurchaseOrder.objects.filter(is_deleted=False).order_by('id')
         
-        # Simple optional filters
+        
         supplier_id = request.query_params.get('supplier_id')
         warehouse_id = request.query_params.get('warehouse_id')
         status_val = request.query_params.get('status')
@@ -73,7 +73,7 @@ class PurchaseOrderDetailView(APIView):
 
 class PurchaseOrderSubmitView(APIView):
     def get_permissions(self):
-        # Only procurement manager can submit
+        
         return [IsProcurementManagerOrAdmin()]
 
     def post(self, request, pk, *args, **kwargs):
@@ -84,7 +84,7 @@ class PurchaseOrderSubmitView(APIView):
 
 class PurchaseOrderApproveView(APIView):
     def get_permissions(self):
-        # Only ADMIN or WAREHOUSE_MANAGER can approve
+        
         return [IsWarehouseManagerOrAdmin()]
 
     def post(self, request, pk, *args, **kwargs):
@@ -95,7 +95,7 @@ class PurchaseOrderApproveView(APIView):
 
 class PurchaseOrderReceiveView(APIView):
     def get_permissions(self):
-        # WAREHOUSE_MANAGER or STAFF can receive goods
+        
         return [IsWarehouseManagerOrAdminOrStaff()]
 
     def post(self, request, pk, *args, **kwargs):
@@ -108,13 +108,9 @@ class PurchaseOrderReceiveView(APIView):
 
 class PurchaseOrderCancelView(APIView):
     def get_permissions(self):
-        # Allow procurement managers, admin, or warehouse managers to cancel
-        # We can write: IsProcurementManagerOrAdmin or IsWarehouseManagerOrAdmin
-        # Let's combine using permission checking or allow IsAuthenticated then check inside view or use a custom class.
         return [permissions.IsAuthenticated()]
 
     def post(self, request, pk, *args, **kwargs):
-        # Role check
         if request.user.role not in ['ADMIN', 'PROCUREMENT_MANAGER', 'WAREHOUSE_MANAGER']:
             return Response({
                 "message": "Only admins, procurement managers, or warehouse managers can cancel purchase orders."
