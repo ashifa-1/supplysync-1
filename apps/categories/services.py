@@ -30,8 +30,6 @@ def create_category(data: dict) -> Category:
         description=data.get('description'),
         parent_category=parent
     )
-    
-    # Invalidate category tree cache
     cache.delete('categories:tree')
     return category
 
@@ -42,7 +40,6 @@ def get_category_tree() -> list:
     if cached is not None:
         return cached
 
-    # Query root categories
     roots = Category.objects.filter(parent_category__isnull=True, is_deleted=False).order_by('id')
     serializer = CategoryTreeSerializer(roots, many=True)
     tree_data = serializer.data

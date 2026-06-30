@@ -27,6 +27,5 @@ class CategoryTreeSerializer(serializers.ModelSerializer):
         fields = ['id', 'category_code', 'name', 'description', 'children']
 
     def get_children(self, obj):
-        # Filter for active, non-deleted children
         children = obj.children.filter(is_deleted=False)
         return CategoryTreeSerializer(children, many=True).data
